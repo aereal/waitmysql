@@ -1,0 +1,19 @@
+---
+
+builds:
+  -
+    main: ./cmd/waitmysql
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - 6
+      - 7
+release:
+  mode: keep-existing
