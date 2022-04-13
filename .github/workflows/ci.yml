@@ -7,6 +7,20 @@ on:
     branches:
       - main
 jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - id: determine_release
+        uses: cycjimmy/semantic-release-action@v3.0.0
+        with:
+          dry_run: true
+        continue-on-error: true
+      - run: |
+          echo 'new_release_published=${{ steps.determine_release.outputs.new_release_published }}'
+          echo 'new_release_version=${{ steps.determine_release.outputs.new_release_version }}'
+          echo 'last_release_version=${{ steps.determine_release.outputs.last_release_version }}'
   lint:
     runs-on: ubuntu-latest
     steps:
