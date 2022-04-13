@@ -17,6 +17,8 @@ jobs:
         with:
           dry_run: true
         continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: |
           echo 'new_release_published=${{ steps.determine_release.outputs.new_release_published }}'
           echo 'new_release_version=${{ steps.determine_release.outputs.new_release_version }}'
