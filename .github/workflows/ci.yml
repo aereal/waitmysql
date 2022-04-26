@@ -82,3 +82,18 @@ jobs:
         if: ${{ matrix.go_version == '1.18.x' }}
         with:
           files: ./cover.os-${{ matrix.os }}.ver-${{ matrix.go_version }}.txt
+  test-action:
+    services:
+      mysql:
+        image: 'mysql:8.0'
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: app
+        ports:
+          - '3306/tcp'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./setup
+      - name: wait
+        run: waitmysql -dsn "root@tcp(127.0.0.1:${{ job.services.mysql.ports['3306'] }})/" -max-delay 10s -max-attempts 10
