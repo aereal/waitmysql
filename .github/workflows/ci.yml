@@ -97,4 +97,4 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./setup
       - name: wait
-        run: waitmysql -dsn "root@tcp(127.0.0.1:${{ job.services.mysql.ports['3306'] }})/" -max-delay 10s -max-attempts 10
+        run: waitmysql -dsn "root@tcp(127.0.0.1:${{ job.services.mysql.ports['3306'] }})/" -max-delay 1m -max-attempts 20 
