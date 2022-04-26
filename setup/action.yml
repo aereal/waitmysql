@@ -1,0 +1,49 @@
+---
+
+name: Setup waitmysql
+description: Setup waitmysql
+author: aereal
+branding:
+  color: orange
+  icon: database
+inputs:
+  version:
+    description: command version
+    default: 'latest'
+    required: false
+runs:
+  using: composite
+  steps:
+    - name: determine tag
+      id: determine_tag
+      shell: bash
+      env:
+        _version: ${{ inputs.version }}
+      run: |
+        curl -o release.json -fsLH 'accept: application/json' https://github.com/aereal/waitmysql/releases/${_version}
+        tag_name="$(jq -r '.tag_name | .[1:]' release.json)"
+        echo "::set-output name=tag::${tag_name}"
+    - name: restore cache
+      id: use-cache
+      uses: actions/cache@v3.0.2
+      with:
+        path: /opt/waitmysql
+        key: waitmysql-${{ steps.determine_tag.outputs.tag }}
+        restore-keys: |
+          waitmysql-
+          waitmysql-${{ steps.determine_tag.outputs.tag }}
+    - name: install
+      if: ${{ ! steps.use-cache.outputs.cache-hit }}
+      shell: bash
+      env:
+        tag: ${{ steps.determine_tag.outputs.tag }}
+      run: |
+        archive_url="https://github.com/aereal/waitmysql/releases/download/v${tag}/waitmysql_${tag}_linux_amd64.tar.gz"
+        echo "download ${archive_url} ..."
+        curl -sfL ${archive_url} | tar xzf -
+        mkdir -p /opt/waitmysql/bin
+        cp ./waitmysql /opt/waitmysql/bin/
+    - name: setup path
+      shell: bash
+      run: |
+        echo "/opt/waitmysql/bin" >> "$GITHUB_PATH"
