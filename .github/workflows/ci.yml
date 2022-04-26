@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - test
+      - test-action
       - lint
       - determine_release
     if: ${{ needs.determine_release.outputs.will_release }}
