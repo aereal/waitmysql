@@ -25,7 +25,7 @@ runs:
         echo "::set-output name=tag::${tag_name}"
     - name: restore cache
       id: use-cache
-      uses: actions/cache@v3.0.4
+      uses: actions/cache@v3.0.5
       with:
         path: /opt/waitmysql
         key: waitmysql-${{ steps.determine_tag.outputs.tag }}
