@@ -1,6 +1,6 @@
 module github.com/aereal/waitmysql
 
-go 1.18
+go 1.19
 
 require github.com/shogo82148/go-retry v1.1.1
 
