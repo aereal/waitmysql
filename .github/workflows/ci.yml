@@ -13,7 +13,7 @@ jobs:
     outputs:
       will_release: ${{ steps.determine_release.outputs.new_release_published }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - id: determine_release
         uses: cycjimmy/semantic-release-action@v3.0.0
         with:
@@ -30,7 +30,7 @@ jobs:
       - determine_release
     if: ${{ needs.determine_release.outputs.will_release }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: cycjimmy/semantic-release-action@v3.0.0
@@ -54,7 +54,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: lint
         uses: reviewdog/action-golangci-lint@v2
         with:
@@ -66,7 +66,7 @@ jobs:
           - 1.18.x
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go_version }}
@@ -94,7 +94,7 @@ jobs:
           - '3306/tcp'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./setup
       - name: wait
         run: waitmysql -dsn "root@tcp(127.0.0.1:${{ job.services.mysql.ports['3306'] }})/" -init-wait 100ms -max-delay 1m -max-attempts 20
