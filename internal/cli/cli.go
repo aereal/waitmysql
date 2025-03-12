@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"time"
 
 	"github.com/aereal/waitmysql/internal/logging"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	"github.com/shogo82148/go-retry"
 )
 
@@ -61,23 +62,24 @@ func (a *App) run(ctx context.Context, argv []string) error {
 		return ErrMissingDSN
 	}
 
+	cfg, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		return fmt.Errorf("mysql.ParseDSN: %w", err)
+	}
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		return fmt.Errorf("mysql.NewConnector: %w", err)
+	}
+	db := sql.OpenDB(connector)
+	checkFn := func() error {
+		return db.PingContext(ctx)
+	}
 	policy := &retry.Policy{
 		MinDelay: initialWait,
 		MaxDelay: maxDelay,
 		MaxCount: maxAttempts,
 	}
-	if err := policy.Do(ctx, func() error { return checkConnection(ctx, dsn) }); err != nil {
-		return err
-	}
-	return nil
-}
-
-func checkConnection(ctx context.Context, dsn string) error {
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return retry.MarkPermanent(err)
-	}
-	if err := db.PingContext(ctx); err != nil {
+	if err := policy.Do(ctx, checkFn); err != nil {
 		return err
 	}
 	return nil
