@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"time"
 
+	"github.com/aereal/waitmysql/internal/logging"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/shogo82148/go-retry"
 )
@@ -33,6 +33,7 @@ const (
 
 func (a *App) Run(ctx context.Context, argv []string) int {
 	if err := a.run(ctx, argv); err != nil {
+		logging.Error(ctx, err)
 		return StatusError
 	}
 	return StatusOK
@@ -54,11 +55,9 @@ func (a *App) run(ctx context.Context, argv []string) error {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
-		fmt.Printf("%+v\n", err)
 		return err
 	}
 	if dsn == "" {
-		fmt.Println("-dsn must be given")
 		return ErrMissingDSN
 	}
 
@@ -68,7 +67,6 @@ func (a *App) run(ctx context.Context, argv []string) error {
 		MaxCount: maxAttempts,
 	}
 	if err := policy.Do(ctx, func() error { return checkConnection(ctx, dsn) }); err != nil {
-		fmt.Printf("%+v\n", err)
 		return err
 	}
 	return nil
