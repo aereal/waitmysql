@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -35,11 +36,10 @@ func run(argv []string) statusCode {
 	flagset.DurationVar(&initialWait, "init-wait", 0, "initial delay")
 	flagset.DurationVar(&maxDelay, "max-delay", -1, "max delay (default is infinity)")
 	flagset.IntVar(&maxAttempts, "max-attempts", -1, "max attempts count")
-	switch err := flagset.Parse(argv[1:]); err {
-	case nil:
-	case flag.ErrHelp:
-		return statusOK
-	default:
+	if err := flagset.Parse(argv[1:]); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return statusOK
+		}
 		fmt.Printf("%+v\n", err)
 		return statusError
 	}

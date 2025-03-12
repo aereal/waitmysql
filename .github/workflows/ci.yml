@@ -7,82 +7,108 @@ on:
     branches:
       - main
 jobs:
+  ok:
+    needs:
+      - test-lint
+      - test-action
+    if: failure()
+    runs-on: ubuntu-24.04
+    steps:
+      - run: exit 1
   determine_release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.ref == 'refs/heads/main'
     outputs:
       will_release: ${{ steps.determine_release.outputs.new_release_published }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - id: determine_release
-        uses: cycjimmy/semantic-release-action@v3.0.0
+        uses: cycjimmy/semantic-release-action@b1b432f13acb7768e0c8efdec416d363a57546f2 # v4.1.1
         with:
           dry_run: true
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
-      - test
+      - test-lint
       - test-action
-      - lint
       - determine_release
     if: ${{ needs.determine_release.outputs.will_release }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: cycjimmy/semantic-release-action@v3.0.0
+      - uses: cycjimmy/semantic-release-action@b1b432f13acb7768e0c8efdec416d363a57546f2 # v4.1.1
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
-          go-version: '1.18.x'
-      - uses: actions/cache@v3
+          go-version: 'stable'
+          cache: true
+      - uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-1.18.x-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-1.18.x
-      - uses: goreleaser/goreleaser-action@v2.9.1
-        with:
-          version: latest
-          args: release --rm-dist
+          version: v2.7.0
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ github.token }}
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: lint
-        uses: reviewdog/action-golangci-lint@v2
-        with:
-          level: info
-  test:
+  test-lint:
     strategy:
       matrix:
         go_version:
-          - 1.18.x
-    runs-on: ubuntu-latest
+          - stable
+          - oldstable
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    env:
+      AQUA_CONFIG: ${{ github.workspace }}/aqua.yaml
+      AQUA_POLICY_CONFIG: ${{ github.workspace }}/aqua-policy.yaml
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        id: setup-go
         with:
           go-version: ${{ matrix.go_version }}
-      - uses: actions/cache@v3
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ matrix.go_version }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-${{ matrix.go_version }}
+          cache: true
+      - run: go mod download
+      - name: build
+        run: |
+          go build -o /dev/null ./...
       - name: test
-        run: go test -v -race -coverprofile=cover.os-${{ matrix.os }}.ver-${{ matrix.go_version }}.txt -covermode=atomic ./...
-      - name: upload coverage
-        uses: codecov/codecov-action@v3
-        if: ${{ matrix.go_version == '1.18.x' }}
+        id: test
+        continue-on-error: true
+        run: go test -v -race -coverprofile=cover.out -covermode=atomic ./...
+      - uses: k1LoW/octocov-action@1ad702b3118b6a055c00b01db68ca0d9f6641dbc # v1.4.0
+        if: ${{ matrix.go_version == 'stable' && steps.test.outcome == 'success' }}
+      - uses: aquaproj/aqua-installer@e2d0136abcf70b7a2f6f505720640750557c4b33 # v3.1.1
         with:
-          files: ./cover.os-${{ matrix.os }}.ver-${{ matrix.go_version }}.txt
+          aqua_version: v2.43.3
+      - run: aqua install
+      - name: golangci-lint
+        env:
+          _go_version: ${{ steps.setup-go.outputs.go-version }}
+        run: |
+          golangci-lint run \
+            --go "$_go_version" \
+            --out-format line-number \
+            --issues-exit-code 0 \
+            --config .golangci.yml \
+            1>lint-stdout.txt 2>/dev/stderr
+      - name: reviewdog
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |
+          reviewdog \
+            -name golangci-lint \
+            -f golangci-lint \
+            -filter-mode nofilter \
+            -reporter github-pr-check \
+            -fail-level warning \
+            < lint-stdout.txt
   test-action:
     services:
       mysql:
@@ -92,9 +118,9 @@ jobs:
           MYSQL_DATABASE: app
         ports:
           - '3306/tcp'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./setup
       - name: wait
         run: waitmysql -dsn "root@tcp(127.0.0.1:${{ job.services.mysql.ports['3306'] }})/" -init-wait 100ms -max-delay 1m -max-attempts 20

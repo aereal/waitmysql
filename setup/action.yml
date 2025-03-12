@@ -22,10 +22,10 @@ runs:
       run: |
         curl -o release.json -fsLH 'accept: application/json' https://github.com/aereal/waitmysql/releases/${_version}
         tag_name="$(jq -r '.tag_name | .[1:]' release.json)"
-        echo "::set-output name=tag::${tag_name}"
+        echo "tag=${tag_name}" >> "$GITHUB_OUTPUT"
     - name: restore cache
       id: use-cache
-      uses: actions/cache@v3.0.11
+      uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
       with:
         path: /opt/waitmysql
         key: waitmysql-${{ steps.determine_tag.outputs.tag }}
