@@ -32,6 +32,13 @@ const (
 )
 
 func (a *App) Run(ctx context.Context, argv []string) int {
+	if err := a.run(ctx, argv); err != nil {
+		return StatusError
+	}
+	return StatusOK
+}
+
+func (a *App) run(ctx context.Context, argv []string) error {
 	flagset := flag.NewFlagSet(argv[0], flag.ContinueOnError)
 	var (
 		dsn         string
@@ -45,14 +52,14 @@ func (a *App) Run(ctx context.Context, argv []string) int {
 	flagset.IntVar(&maxAttempts, "max-attempts", -1, "max attempts count")
 	if err := flagset.Parse(argv[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			return StatusOK
+			return nil
 		}
 		fmt.Printf("%+v\n", err)
-		return StatusError
+		return err
 	}
 	if dsn == "" {
 		fmt.Println("-dsn must be given")
-		return StatusError
+		return ErrMissingDSN
 	}
 
 	policy := &retry.Policy{
@@ -62,9 +69,9 @@ func (a *App) Run(ctx context.Context, argv []string) int {
 	}
 	if err := policy.Do(ctx, func() error { return checkConnection(ctx, dsn) }); err != nil {
 		fmt.Printf("%+v\n", err)
-		return StatusError
+		return err
 	}
-	return StatusOK
+	return nil
 }
 
 func checkConnection(ctx context.Context, dsn string) error {
